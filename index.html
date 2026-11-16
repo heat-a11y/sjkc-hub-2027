@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>🇲🇾 SJKC Hub 2027 — eRPH-PM & Penjana Kertas Ujian</title>
-<link rel="stylesheet" href="/tailwind.css">
+<link rel="stylesheet" href="./tailwind.css">
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script defer src="curriculum-db.js"></script>
-<script defer src="rpt-data.js"></script>
-<script defer src="exam-browser.js"></script>
-<link rel="manifest" href="/manifest.webmanifest">
+<script defer src="./curriculum-db.js"></script>
+<script defer src="./rpt-data.js"></script>
+<script defer src="./exam-browser.js"></script>
+<link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#1E3A5F">
 <meta name="description" content="eRPH-PM — Rancangan Pengajaran Harian Malaysia (SJKC) — fully offline-capable lesson plan generator.">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
 <script>
-  if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); }); }
+  if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); }); }
 </script>
 </head>
 <body class="bg-[#FFF8F0] text-[#3A2A1A] font-sans antialiased" x-data="app()">
@@ -537,10 +537,10 @@
           <div class="flex flex-wrap items-center gap-2 border-t border-[#C4956A]/10 pt-3">
             <button @click="examGen()" :disabled="ex.busy" class="inline-flex items-center gap-1 rounded-lg px-4 py-2 text-xs font-semibold text-white shadow-md disabled:opacity-50" style="background:linear-gradient(135deg,#C4956A,#8B5A2B)" x-text="ex.busy?'⏳ Menjana Kertas…':t('exam_genBtn')"></button>
             <button @click="examRegen()" :disabled="ex.busy" class="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50" x-text="t('exam_regenBtn')"></button>
-            <button @click="examDlDocx('paper_b64','')" x-show="ex.res && ex.res.docx && ex.res.docx.paper_b64" class="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100" x-text="t('exam_dlPaper')"></button>
-            <button @click="examDlDocx('paper_b_b64','_SetB')" x-show="ex.res && ex.res.docx && ex.res.docx.paper_b_b64" class="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100">⬇️ DOCX Set B</button>
-            <button @click="examDlDocx('teacher_b64','_TEACHER_JSU')" x-show="ex.res && ex.res.docx && ex.res.docx.teacher_b64" class="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" x-text="t('exam_dlTeacher')"></button>
-            <button @click="examDlDocx('marksheet_b64','_BORANG_MARKAH')" x-show="ex.res && ex.res.docx && ex.res.docx.marksheet_b64" class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100" x-text="t('exam_dlMarksheet')"></button>
+            <button @click="examDlDocx('paper_b64','')" x-show="ex.res" class="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100" x-text="t('exam_dlPaper')"></button>
+            <button @click="examDlDocx('paper_b_b64','_SetB')" x-show="ex.res && ex.ab_set" class="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100">⬇️ DOCX Set B</button>
+            <button @click="examDlDocx('teacher_b64','_TEACHER_JSU')" x-show="ex.res" class="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" x-text="t('exam_dlTeacher')"></button>
+            <button @click="examDlDocx('marksheet_b64','_BORANG_MARKAH')" x-show="ex.res" class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100" x-text="t('exam_dlMarksheet')"></button>
             <button @click="examPrint()" x-show="ex.res" class="inline-flex items-center gap-1 rounded-lg border border-[#C4956A]/30 bg-white px-3 py-2 text-xs font-semibold text-[#8B5A2B] hover:bg-[#FFF8F0]" x-text="t('exam_printBtn')"></button>
           </div>
         </div>
@@ -4207,25 +4207,105 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
         }
       }
     }catch(e){}
-    // Offline fallback from bundled EXAM_OFFLINE_CACHE
-    const yKey=String(payload.year);
-    if(typeof window.EXAM_OFFLINE_CACHE!=='undefined'&&window.EXAM_OFFLINE_CACHE[yKey]){
-      this.ex.res=JSON.parse(JSON.stringify(window.EXAM_OFFLINE_CACHE[yKey]));
-      this.ex.mode='offline';
+    // GitHub Pages / Offline static engine via window.buildStaticExam
+    if(typeof window.buildStaticExam==='function'){
+      const built=window.buildStaticExam(payload);
+      if(built){
+        this.ex.res=built;
+        this.ex.mode='pages';
+        this.ex.busy=false;
+        return;
+      }
     }
     this.ex.busy=false;
   },
-  examDlDocx(key,suffix){
-    if(!this.ex.res||!this.ex.res.docx||!this.ex.res.docx[key])return;
-    const b64=this.ex.res.docx[key];
-    const bin=atob(b64);
-    const arr=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
-    const blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  async examDlDocx(key,suffix){
+    if(!this.ex.res)return;
+    const et=(this.ex.exam_type||'upsa').toUpperCase();
+    const fname=et+'_Year'+this.ex.year+'_BI_Set'+this.ex.seed+(suffix||'')+'.docx';
+    if(this.ex.res.docx&&this.ex.res.docx[key]){
+      const b64=this.ex.res.docx[key];
+      const bin=atob(b64);
+      const arr=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+      const blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=fname;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+      return;
+    }
+    // Client-side JSZip .docx builder for GitHub Pages static hosting
+    if(typeof JSZip==='undefined'){try{await loadLib('jszip');}catch(e){}}
+    if(typeof JSZip==='undefined'){alert(this.t('noZip'));return;}
+    let targetRes=this.ex.res;
+    if(key==='paper_b_b64'&&typeof window.buildStaticExam==='function'){
+      targetRes=window.buildStaticExam(Object.assign({},this.ex,{seed:(Number(this.ex.seed)||1)+1}))||this.ex.res;
+    }
+    const m=targetRes.meta||{};
+    let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    x+='<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>';
+    x+=this.dxP((m.school||'SJK(C) PIN MIN, BIDOR'),{b:true,sz:28,jc:'center',before:80});
+    x+=this.dxP((m.exam_type||'UPSA')+' — YEAR '+(m.year||this.ex.year)+' SESSION '+(m.session||this.session||'2027'),{b:true,sz:26,jc:'center',color:'1E3A5F'});
+    x+=this.dxP('English Language (013)  |  Duration: '+(m.duration||'1 hour')+'  |  50 Marks',{sz:20,jc:'center',i:true});
+    if(key==='marksheet_b64'&&targetRes.marksheet){
+      x+=this.dxP('BORANG MARKAH / MARKING SHEET',{b:true,sz:24,jc:'center',before:160});
+      (targetRes.marksheet.parts||[]).forEach(pt=>{
+        x+=this.dxP('PART '+pt.part+' ['+pt.marks+' marks]',{b:true,sz:20,color:'1E3A5F',before:120});
+        x+=this.docxTable(['No.','Item','Mark'],(pt.items||[]).map(it=>[String(it.q),String(it.text||''),'']));
+      });
+    }else{
+      (targetRes.parts||[]).forEach(pt=>{
+        x+=this.dxP('PART '+pt.num+' ('+pt.marks+' marks)',{b:true,sz:24,color:'1E3A5F',before:180});
+        if(pt.lead)x+=this.dxP(pt.lead,{i:true,sz:20});
+        if(pt.passage)x+=this.dxP(pt.passage,{sz:20,before:80});
+        (pt.items||[]).forEach(it=>{
+          if(it.type==='mcq'){
+            if(it.stimulus)x+=this.dxP(it.stimulus,{i:true,sz:19,before:60});
+            x+=this.dxP(it.qno+'. '+it.stem,{b:true,sz:20,before:80});
+            (it.options||[]).forEach((opt,oi)=>{
+              const lbl=['A','B','C','D'][oi]||String(oi+1);
+              x+=this.dxP('    '+lbl+'. '+opt,{sz:20});
+            });
+          }else if(it.type==='word'){
+            x+=this.dxP(it.qno+'. '+it.clue+'   '+(it.pattern||'____'),{sz:20,before:80});
+          }else if(it.type==='write'){
+            x+=this.dxP(it.qno+'. '+it.prompt,{b:true,sz:20,before:80});
+            (it.bullets||[]).forEach(b=>{x+=this.dxP('  • '+b,{sz:19});});
+            for(let l=0;l<(it.lines||8);l++)x+=this.dxP('______________________________________________________________________',{sz:18,color:'999999'});
+          }
+        });
+      });
+      if(key==='teacher_b64'){
+        x+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+        x+=this.dxP('ANSWER KEY (SKEMA JAWAPAN)',{b:true,sz:24,jc:'center',color:'1E3A5F',before:120});
+        (targetRes.parts||[]).forEach(pt=>{
+          x+=this.dxP('PART '+pt.num,{b:true,sz:20,before:80});
+          (pt.items||[]).forEach(it=>{
+            x+=this.dxP('Q'+it.qno+': '+(it.answer||it.model||'(see rubric)'),{sz:19});
+          });
+        });
+        if(targetRes.jsu&&Array.isArray(targetRes.jsu.rows)){
+          x+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+          x+=this.dxP('JADUAL SPESIFIKASI UJIAN (JSU)',{b:true,sz:24,jc:'center',color:'1E3A5F',before:120});
+          x+=this.docxTable(['No','Skill','Focus','Theme','Standard','Taxonomy','CEFR','Marks'],targetRes.jsu.rows.map(r=>[String(r.qno),String(r.skill),String(r.focus),String(r.theme),String(r.standard),String(r.taxonomy),String(r.level),String(r.marks)]));
+        }
+      }
+    }
+    x+='<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+    const zip=new JSZip();
+    zip.file('[Content_Types].xml',DX_CT);
+    zip.folder('_rels').file('.rels',DX_RELS);
+    const wf=zip.folder('word');
+    wf.file('document.xml',x);
+    wf.file('styles.xml',DX_STYLES);
+    wf.folder('_rels').file('document.xml.rels',DX_DRELS);
+    const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    const et=(this.ex.exam_type||'upsa').toUpperCase();
-    a.download=et+'_Year'+this.ex.year+'_BI_Set'+this.ex.seed+(suffix||'')+'.docx';
+    a.download=fname;
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);

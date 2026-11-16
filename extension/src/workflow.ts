@@ -7,7 +7,7 @@ export interface TransferTab {
 export function isErphAppUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol === "https:" && (url.hostname === "erph-pm.vercel.app" || url.hostname.endsWith(".vercel.app") && /(erph|sjkc)/i.test(url.hostname))) {
+    if (url.protocol === "https:" && (url.hostname === "erph-pm.vercel.app" || url.hostname.endsWith(".github.io") || (url.hostname.endsWith(".vercel.app") && /(erph|sjkc)/i.test(url.hostname)))) {
       return true;
     }
     if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {

@@ -92,7 +92,7 @@ export function readTransitTablesFromPage(
   pageUrl = location.href,
 ): TransitTableData[] {
   const url = new URL(pageUrl);
-  const validHttps = url.protocol === "https:" && (url.hostname === "erph-pm.vercel.app" || (url.hostname.endsWith(".vercel.app") && /(erph|sjkc)/i.test(url.hostname)));
+  const validHttps = url.protocol === "https:" && (url.hostname === "erph-pm.vercel.app" || url.hostname.endsWith(".github.io") || (url.hostname.endsWith(".vercel.app") && /(erph|sjkc)/i.test(url.hostname)));
   const validLocal = url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
   if (!validHttps && !validLocal) {
     throw new Error("This is not the eRPH-PM application.");

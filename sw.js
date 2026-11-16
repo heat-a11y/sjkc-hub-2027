@@ -8,7 +8,7 @@ var CDN = [
   'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
   'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
 ];
-var LOCAL = ['/tailwind.css', '/curriculum-db.js', '/rpt-data.js', '/exam-browser.js', '/icon.svg', '/manifest.webmanifest'];
+var LOCAL = ['./tailwind.css', './curriculum-db.js', './rpt-data.js', './exam-browser.js', './icon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(

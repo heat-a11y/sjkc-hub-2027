@@ -20,6 +20,7 @@
   "host_permissions": [
     "https://erph-pm.vercel.app/*",
     "https://*.vercel.app/*",
+    "https://*.github.io/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://moeissppb.moe.gov.my/*"
