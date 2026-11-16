@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/exam", "destination": "/api/exam.py" },
+    { "source": "/api/generate-content", "destination": "/api/generate_content.py" }
+  ]
+}

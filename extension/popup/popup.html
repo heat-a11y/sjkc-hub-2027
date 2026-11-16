@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eRPH-PM TP Transfer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <span class="logo">🇲🇾</span>
+      <div class="header-text">
+        <h1>eRPH-PM</h1>
+        <p>Rekod Transit → MOEIS PBD</p>
+      </div>
+    </header>
+
+    <div class="status-bar" id="statusBar">
+      <span id="statusText">Siap</span>
+      <span class="spinner" id="spinner"></span>
+    </div>
+
+    <div class="section">
+      <label>Penilaian Murid</label>
+      <p class="help-text">Buka Rekod Transit untuk subjek/kelas dan jadual PBD MOEIS dahulu. TP, Kemahiran, Ulasan Guru, Intervensi dan Usaha Murid akan dikemas kini mengikut RPH terkini; semak sebelum menghantar.</p>
+      <button id="transferTpBtn" class="btn btn-primary w-full">
+        Import RPH &amp; Fill MOEIS
+      </button>
+    </div>
+
+    <div class="log-container" id="logContainer">
+      <div class="log-item" id="logEmpty">Tiada aktiviti lagi.</div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "eRPH-PM TP Transfer",
+  "description": "Locally transfer student TP values from Rekod Transit into MOEIS PBD",
+  "version": "2.3.8",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Transfer TP to MOEIS"
+  },
+  "permissions": [
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://erph-pm.vercel.app/*",
+    "https://*.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://moeissppb.moe.gov.my/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://moeissppb.moe.gov.my/keputusan/pbd/pbd/*"
+      ],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

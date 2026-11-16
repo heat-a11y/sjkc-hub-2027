@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1E3A5F"/>
+  <text x="256" y="292" font-family="system-ui,Segoe UI,Arial,sans-serif" font-size="132" font-weight="700" text-anchor="middle" fill="#C4956A">eRPH</text>
+  <rect x="96" y="360" width="320" height="14" rx="7" fill="#C4956A"/>
+</svg>

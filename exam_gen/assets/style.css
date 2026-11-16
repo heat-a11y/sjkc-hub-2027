@@ -1,0 +1,129 @@
+/* Penjana Kertas Ujian — Material Design 3 (GTK4)
+   Dark mode only. Light surfaces were removed; these dark tokens are
+   applied unconditionally (no theme swapping). Concrete colors, no var(). */
+
+/* ================= BASE (dark) ================= */
+window, window.background {
+  background-color: #141218;
+  color: #e6e0e9;
+}
+headerbar {
+  background-color: #141218;
+  border-bottom: 1px solid #2e2933;
+  color: #e6e0e9;
+  padding: 4px 8px;
+}
+headerbar .title, headerbar .subtitle { color: #e6e0e9; }
+label { color: #e6e0e9; }
+label.muted { color: #cac4d0; font-size: 11px; }
+.overline {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .09em;
+  color: #d0bcff; text-transform: uppercase;
+}
+
+/* ---- cards ----------------------------------------------------- */
+.card {
+  background-color: #211f26;
+  border: 1px solid #322f37;
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin: 4px 6px;
+  color: #e6e0e9;
+}
+.card-title { font-weight: 700; font-size: 13px; letter-spacing: .02em; }
+.card-sub { color: #cac4d0; font-size: 11px; }
+.card .divider { background-color: #322f37; min-height: 1px; margin: 8px 0; }
+
+/* ---- buttons --------------------------------------------------- */
+button {
+  border-radius: 12px;
+  border: 1px solid #3a3640;
+  background-color: #2b2930;
+  color: #e6e0e9;
+  transition: 120ms ease;
+}
+button:hover { background-color: #35313c; border-color: #d0bcff; }
+button:active { background-color: #4a4458; }
+button.primary {
+  background-color: #d0bcff; border: none; color: #21005d; font-weight: 700;
+  border-radius: 999px; padding: 8px 22px;
+}
+button.primary:hover { background-color: #e2d4ff; }
+button.tonal {
+  background-color: #4a4458; border: none; color: #e6e0e9;
+  border-radius: 999px;
+}
+button.tonal:hover { background-color: #5a526b; }
+button.ghost, button.flat {
+  background: transparent; border: 1px solid transparent; color: #d0bcff;
+}
+button.ghost:hover { background-color: #2b2930; border-color: #3a3640; }
+button.suggested-action { background-color: #d0bcff; border: none; color: #21005d; }
+
+/* ---- chips (selectable) ---------------------------------------- */
+.chip {
+  border-radius: 999px; padding: 5px 14px;
+  background-color: #4a4458; border: 1px solid #4a4458; color: #e6e0e9;
+  font-weight: 600;
+}
+.chip:hover { background-color: #5a526b; border-color: #5a526b; }
+.chip:checked {
+  background-color: #d0bcff; border-color: #d0bcff; color: #21005d;
+}
+.chip.small { padding: 3px 10px; font-size: 11px; }
+
+/* ---- fields ---------------------------------------------------- */
+entry, textview, spinbutton, dropdown > button {
+  background-color: #211f26;
+  border-radius: 10px;
+  border: 1px solid #4a4458;
+  color: #e6e0e9;
+  padding: 5px 10px;
+}
+entry:focus, spinbutton:focus, dropdown:focus-within > button,
+textview:focus-within { border-color: #d0bcff; outline: none; }
+entry, spinbutton { border-radius: 999px; }
+textview text { background-color: #211f26; color: #e6e0e9; }
+checkbutton { color: #e6e0e9; }
+switch { background-color: #4a4458; }
+switch:checked { background-color: #d0bcff; }
+row { background-color: transparent; }
+
+/* ---- layout helpers -------------------------------------------- */
+.sidebar { background-color: transparent; }
+.side-scroll { background-color: transparent; }
+.side-scroll > scrollbar { background: transparent; }
+.field-row { margin: 6px 0; }
+.spacer { min-height: 1px; }
+.statusbar {
+  background-color: #4a4458; border-radius: 14px; padding: 8px 12px;
+  color: #e6e0e9; font-size: 12px;
+}
+.statusbar.ok { background-color: #183c2e; color: #c2f0dd; }
+.statusbar.err { background-color: #3c1a17; color: #f2b8b5; }
+.statusbar .dim { color: #d0bcff; font-weight: 700; }
+
+/* ---- preview --------------------------------------------------- */
+.preview-box {
+  background-color: #1c1b1f; border: 1px solid #322f37; border-radius: 16px;
+  padding: 6px;
+}
+.preview-bar {
+  background-color: #211f26; border-radius: 12px;
+  padding: 4px 8px; margin: 0 0 6px;
+}
+
+/* ---- scrollbars ------------------------------------------------- */
+scrollbar { background: transparent; }
+scrollbar trough { background-color: #322f37; border-radius: 999px; }
+scrollbar slider { background-color: #49454f; border-radius: 999px; min-width: 8px; }
+
+/* ---- FAB-like action -------------------------------------------- */
+button.fab {
+  min-width: 44px; min-height: 44px; border-radius: 999px; padding: 0;
+  background-color: #d0bcff; border: none; color: #21005d;
+}
+button.fab:hover { background-color: #e2d4ff; }
+
+/* ---- header primary --------------------------------------------- */
+.gen-title { font-weight: 800; font-size: 16px; }
