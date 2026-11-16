@@ -209,6 +209,7 @@
               <button @click.stop="toggleLock(p)" class="rounded-lg border px-3 py-1.5 text-[10px] font-medium" :class="p._lock?'border-rose-300 bg-rose-50 text-rose-600':'border-slate-300 bg-white text-slate-500 hover:bg-slate-50'" x-text="p._lock?t('unlock'):t('lock')"></button>
               <button @click.stop="undo1(p)" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[10px] font-medium text-slate-500 hover:bg-slate-50" x-show="p._prev" x-text="t('undo')"></button>
               <button @click.stop="ref1(p)" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100" x-text="t('janaRef')"></button>
+              <button @click.stop="refBlank(p)" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[10px] font-medium text-slate-600 hover:bg-slate-50">📝 Refleksi Kosong</button>
               <button @click.stop="regActs(p)" class="rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-[10px] font-medium text-green-700 hover:bg-green-100" x-text="t('janaAkt')"></button>
               <button @click.stop="aiGenPlan(p)" :disabled="!!p._aiBusy" class="rounded-lg border border-purple-300 bg-purple-50 px-3 py-1.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-60" x-text="p._aiBusy||'🤖 '+t('ai_btn')"></button>
               <button @click.stop="carryForward(p)" class="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-[10px] font-medium text-teal-700 hover:bg-teal-100" x-text="t('carry_btn')"></button>
@@ -2877,12 +2878,23 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
   },
   stdPool(s,classStr,wk,field){
     var rw=this.rptWeek(s,classStr,wk);
-    if(rw&&rw[field]&&rw[field].length)return this.rptCodes(rw[field]);
+    if(rw&&rw[field]&&rw[field].length){
+      var rc=this.rptCodes(rw[field]).filter(function(x){return String(x||'').trim().length>=4;});
+      if(rc.length)return rc;
+    }
     var yr=(classStr==='Prasekolah')?'Prasekolah':'Year '+((String(classStr).match(/\d+/)||[''])[0]);
     if(typeof getCurriculum!=='function')return [];
     var c=getCurriculum(yr,s);if(!c)return [];
     var obj=field==='sk'?c.SK:c.SP;
-    return Object.entries(obj).map(function(e){return e[0]+' '+e[1];});
+    var entries=Object.entries(obj).filter(function(e){return e[1]&&String(e[1]).trim().length>=3;}).map(function(e){return e[0]+' '+e[1];});
+    if(!entries.length)return Object.entries(obj).map(function(e){return e[0]+' '+e[1];});
+    var wNum=parseInt(wk,10);
+    if(!isNaN(wNum)&&wNum>=1&&entries.length>3){
+      var ratio=Math.max(0,Math.min(1,(wNum-1)/39));
+      var start=Math.min(entries.length-3,Math.floor(ratio*(entries.length-2)));
+      return entries.slice(start,start+3).concat(entries.slice(0,start));
+    }
+    return entries;
   },
   remPool(s,classStr){var l=(classStr==='Prasekolah')?'bm':this.lg(s,this.tg);var base=(l==='en'?REM_EN:l==='zh'?REM_ZH:REM)||REM;var ex=(typeof REM_SUBJ!=='undefined'&&REM_SUBJ[s])?(REM_SUBJ[s][l]||REM_SUBJ[s].bm||[]):[];return base.concat(ex);},
   isJunkCode(code){return /^\s*[-\u2013]?\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4}\s*$/.test(String(code==null?'':code));},
@@ -2935,24 +2947,64 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
   aC(p){const m={'Set Induction':'bg-amber-100 text-amber-700','Pre-lesson':'bg-blue-100 text-blue-700','Lesson Development':'bg-green-100 text-green-700','Post-lesson':'bg-purple-100 text-purple-700','Closure':'bg-rose-100 text-rose-700','Set Induksi':'bg-amber-100 text-amber-700','Pra-PdP':'bg-blue-100 text-blue-700','Perkembangan PdP':'bg-green-100 text-green-700','Pasca-PdP':'bg-purple-100 text-purple-700','Penutup':'bg-rose-100 text-rose-700','导入':'bg-amber-100 text-amber-700','课前活动':'bg-blue-100 text-blue-700','主要教学':'bg-green-100 text-green-700','课后活动':'bg-purple-100 text-purple-700','总结':'bg-rose-100 text-rose-700'};if(!p)return'bg-slate-100 text-slate-700';for(const k in m){if(p.indexOf(k)!==-1)return m[k];}return'bg-slate-100 text-slate-700';},
 
   gen(){if(!this.tg)return;const wk=this.currentWeek;const plans=this.buildPlans(wk);if(!plans.length)return;this.rph=[...plans,...this.rph];this.a='rph';this.pushHist('Jana RPH');this.sv();},
+  _slotMinutes(s){
+    var all=this.slFor(this.currentWeek).filter(function(x){return x.d===s.d&&x.c===s.c&&x.s===s.s;});
+    var idx=(this.PERIODS||[]).findIndex(function(p){return p[0]===s.p;});
+    if(idx>=0&&all.length>1){
+      var nextPer=(this.PERIODS[idx+1]||[])[0];
+      var prevPer=(this.PERIODS[idx-1]||[])[0];
+      if(nextPer&&all.some(function(x){return x.p===nextPer;}))return 60;
+      if(prevPer&&all.some(function(x){return x.p===prevPer;}))return 60;
+    }
+    return 30;
+  },
+  _phaseDurations(totalMin){
+    return totalMin>=55?[8,10,27,10,5]:[5,5,12,5,3];
+  },
+  _phaseRoles(lang){
+    return {
+      tr:lang==='en'?['👩‍🏫 Guide','👨‍🏫 Explain','👩‍🏫 Facilitate','👨‍🏫 Assess','👩‍🏫 Summarise']:lang==='bm'?['👩‍🏫 Membimbing','👨‍🏫 Menerangkan','👩‍🏫 Memudahcara','👨‍🏫 Menilai','👩‍🏫 Merumus']:['👩‍🏫 引导','👨‍🏫 讲解','👩‍🏫 引导活动','👨‍🏫 评估','👩‍🏫 总结'],
+      sr:lang==='en'?['🙋 Participate','👂 Listen','✍️ Carry out','🗣️ Present','💭 Reflect']:lang==='bm'?['🙋 Melibatkan diri','👂 Mendengar','✍️ Melaksanakan','🗣️ Membentang','💭 Mereflek']:['🙋 积极参与','👂 聆听','✍️ 执行','🗣️ 呈现','💭 反思']
+    };
+  },
   buildPlans(wk){
     const plans=[];const wkData=wk?this.TAKWIM.find(w=>String(w.m)===String(wk)):null;
-    this.slFor(wk).forEach(s=>{
-      const du=30;const per=this.PERIODS.find(x=>x[0]===s.p);const tm=per?per[1]+'-'+per[2]:'';
+    const slots=this.slFor(wk);
+    const seenDouble={};
+    slots.forEach(s=>{
+      var du=this._slotMinutes(s);
+      var perIdx=(this.PERIODS||[]).findIndex(x=>x[0]===s.p);
+      var per=perIdx>=0?this.PERIODS[perIdx]:null;
+      var tm=per?per[1]+'-'+per[2]:'';
+      var perLabel=s.p;
+      if(du===60&&perIdx>=0){
+        var prevPer=this.PERIODS[perIdx-1];
+        if(prevPer&&slots.some(x=>x.d===s.d&&x.c===s.c&&x.s===s.s&&x.p===prevPer[0])){
+          // Skip second slot of a merged double period if first slot already generated
+          if(seenDouble[s.d+'|'+s.c+'|'+s.s+'|'+prevPer[0]])return;
+        }
+        var nextPer=this.PERIODS[perIdx+1];
+        if(nextPer&&slots.some(x=>x.d===s.d&&x.c===s.c&&x.s===s.s&&x.p===nextPer[0])){
+          seenDouble[s.d+'|'+s.c+'|'+s.s+'|'+s.p]=true;
+          tm=(per?per[1]:'')+'-'+nextPer[2];
+          perLabel=s.p+'+'+nextPer[0];
+        }
+      }
       const rem=this.remPool(s.s,s.c).slice().sort(()=>Math.random()-0.5).slice(0,3);
       let dateStr=s.d;
       if(wkData&&wkData.s){const dm={Isnin:1,Selasa:2,Rabu:3,Khamis:4,Jumaat:5};const dn=dm[s.d]||1;const[sd,sm,sy]=wkData.s.split('/').map(Number);const ws=new Date(sy,sm-1,sd);const sd2=new Date(ws);sd2.setDate(ws.getDate()+dn-1);dateStr=String(sd2.getDate()).padStart(2,'0')+'/'+String(sd2.getMonth()+1).padStart(2,'0')+'/'+sd2.getFullYear();}
-      const l=this.lg(s.s,this.tg);const phases=l==='en'?['🎯 Set Induction','📚 Pre-lesson','📖 Lesson Development','💡 Post-lesson','🎯 Closure']:l==='bm'?['🎯 Set Induksi','📚 Pra-PdP','📖 Perkembangan PdP','💡 Pasca-PdP','🎯 Penutup']:['🎯 导入','📚 课前活动','📖 主要教学','💡 课后活动','🎯 总结'];
-      const duDef=[8,7,22,5,5];const tr=l==='en'?['👩‍🏫 Guide','👨‍🏫 Explain','👩‍🏫 Facilitate','👨‍🏫 Assess','👩‍🏫 Summarise']:l==='bm'?['👩‍🏫 Membimbing','👨‍🏫 Menerangkan','👩‍🏫 Memudahcara','👨‍🏫 Menilai','👩‍🏫 Merumus']:['👩‍🏫 引导','👨‍🏫 讲解','👩‍🏫 引导活动','👨‍🏫 评估','👩‍🏫 总结'];
-      const sr=l==='en'?['🙋 Participate','👂 Listen','✍️ Carry out','🗣️ Present','💭 Reflect']:l==='bm'?['🙋 Melibatkan diri','👂 Mendengar','✍️ Melaksanakan','🗣️ Membentang','💭 Mereflek']:['🙋 积极参与','👂 聆听','✍️ 执行','🗣️ 呈现','💭 反思'];
+      const tema=(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw){var tu=this.tuSplit(rw);if(tu.t)return[tu.t];}var n=this.rptYearNum(s.c);var d=s.c==='Prasekolah'?(RPT['PRASEKOLAH']||{})[s.s]:null;if(!d)d=(RPT[s.s]||{})[n]||null;if(d&&d.length>0){var pp=d[Math.max(0,Math.min(d.length-1,(parseInt(wk,10)||1)-1))];if(pp.t)return[pp.t];}}catch(e){}return[];})();
+      const unit=(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw){var tu=this.tuSplit(rw);if(tu.u)return[tu.u];}var n=this.rptYearNum(s.c);var d=s.c==='Prasekolah'?(RPT['PRASEKOLAH']||{})[s.s]:null;if(!d)d=(RPT[s.s]||{})[n]||null;if(d&&d.length>0){var pp=d[Math.max(0,Math.min(d.length-1,(parseInt(wk,10)||1)-1))];if(pp.u)return[pp.u];}}catch(e){}return[];})();
+      const skPool=this.stdPool(s.s,s.c,wk,'sk');
+      const spPool=this.stdPool(s.s,s.c,wk,'sp');
       plans.push({
         id:Date.now().toString(36)+Math.random().toString(36).slice(2),
-        c:s.c,s:s.s,sn:s.n,d:dateStr,per:s.p,tm,dr:du,_wk:wk||'-',
+        c:s.c,s:s.s,sn:s.n,d:dateStr,per:perLabel,tm,dr:du,_wk:wk||'-',
         src:(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw&&((rw.sk&&rw.sk.length)||(rw.sp&&rw.sp.length)))return'RPT';var yr=s.c==='Prasekolah'?'Prasekolah':('Year '+s.c.match(/\d+/));var c=getCurriculum(yr,s.s);if(c&&((c.SK&&Object.keys(c.SK).length)||(c.SP&&Object.keys(c.SP).length)))return'DSKP';}catch(e){}return'Generik';})(),
-        tema:(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw){var tu=this.tuSplit(rw);if(tu.t)return[tu.t];}var n=this.rptYearNum(s.c);var d=s.c==='Prasekolah'?(RPT['PRASEKOLAH']||{})[s.s]:null;if(!d)d=(RPT[s.s]||{})[n]||null;if(d&&d.length>0){var pp=d[Math.max(0,Math.min(d.length-1,(parseInt(wk,10)||1)-1))];if(pp.t)return[pp.t];}}catch(e){}return[];})(),
-        unit:(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw){var tu=this.tuSplit(rw);if(tu.u)return[tu.u];}var n=this.rptYearNum(s.c);var d=s.c==='Prasekolah'?(RPT['PRASEKOLAH']||{})[s.s]:null;if(!d)d=(RPT[s.s]||{})[n]||null;if(d&&d.length>0){var pp=d[Math.max(0,Math.min(d.length-1,(parseInt(wk,10)||1)-1))];if(pp.u)return[pp.u];}}catch(e){}return[];})(),
-        sk:(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw&&rw.sk&&rw.sk.length){var _sk=this.rptCodes(rw.sk);if(_sk.length)return _sk.slice(0,3);} var yr=s.c==='Prasekolah'?'Prasekolah':('Year '+s.c.match(/\d+/));if(typeof getCurriculum!=='function')return['Standard Kandungan'];var c=getCurriculum(yr,s.s);if(c)return Object.entries(c.SK).slice(0,3).map(function(e){return e[0]+' '+e[1];});}catch(e){}return['Standard Kandungan'];})(),
-        sp:(()=>{try{var rw=this.rptWeek(s.s,s.c,wk);if(rw&&rw.sp&&rw.sp.length){var _sp=this.rptCodes(rw.sp);if(_sp.length)return _sp.slice(0,3);} var yr=s.c==='Prasekolah'?'Prasekolah':('Year '+s.c.match(/\d+/));if(typeof getCurriculum!=='function')return['Standard Pembelajaran'];var c=getCurriculum(yr,s.s);if(c)return Object.entries(c.SP).slice(0,3).map(function(e){return e[0]+' '+e[1];});}catch(e){}return['Standard Pembelajaran'];})(),
+        tema:tema,
+        unit:unit,
+        sk:skPool.length?skPool.slice(0,3):['Standard Kandungan'],
+        sp:spPool.length?spPool.slice(0,3):['Standard Pembelajaran'],
         rem:rem.map(r=>({t:r.t,d:r.d,st:r.st||[]})),
         ref:'',o:true,done:false,
       });
@@ -2961,11 +3013,12 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
     var self=this;var _phA=['i','p','d','ps','c'];
     plans.forEach(function(p){
       var lang=self.lg(p.s,self.tg);
+      var duDef=self._phaseDurations(p.dr||30);
+      var roles=self._phaseRoles(lang);
       p.acts=_phA.map(function(ph,i){
         var pick=self.themeAwarePick(p,ph);
-        var duDef=[8,7,22,5,5];
         var phases=lang==='en'?['🎯 Set Induction','📚 Pre-lesson','📖 Lesson Development','💡 Post-lesson','🎯 Closure']:lang==='bm'?['🎯 Set Induksi','📚 Pra-PdP','📖 Perkembangan PdP','💡 Pasca-PdP','🎯 Penutup']:['🎯 导入','📚 课前活动','📖 主要教学','💡 课后活动','🎯 总结'];
-        return{ph:phases[i],d:pick.text,dr:duDef[i],t:'',s:''};
+        return{ph:phases[i],d:pick.text,dr:duDef[i],t:roles.tr[i],s:roles.sr[i]};
       });
     });
     // Auto-init TP for each plan (consistent per-pupil progress record)
@@ -3025,27 +3078,34 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
     if(this.session)x+=this.dxP('Sesi '+this.session+(this.tg?'  |  Guru: '+this.tN():''),{sz:18,jc:'center',i:true});
     plans.forEach(function(p,idx){
       if(idx>0)x+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+      const l=self.lg(p.s,self.tg);
+      const L=self._rphLabels(l);
+      const stripE=(s)=>String(s||'').replace(/^[^\w\u4e00-\u9fff]+\s*/,'').trim();
       const hd=p.d+(p._wk&&p._wk!=='-'?' (Minggu '+p._wk+')':'');
       x+=self.dxP(hd,{b:true,sz:26,color:'1E3A5F',before:160});
-      x+=self.dxP(p.sn+' — '+p.c+(p.tm?'  |  '+p.tm:''),{b:true,sz:20,color:'8B5A2B'});
+      x+=self.dxP(p.sn+' — '+p.c+(p.tm?'  |  '+p.tm:'')+(p.dr?' ('+p.dr+' min)':''),{b:true,sz:20,color:'8B5A2B'});
       if(p.rl)x+=self.dxP('🔄 Ganti: '+p.rl,{sz:18,color:'C2410C'});
       if(p.per&&p.per!=='P')x+=self.dxP('Waktu: '+p.per,{sz:18,i:true});
       const meta=[];
-      if(p.tema&&p.tema.join('').trim())meta.push('Tema: '+(Array.isArray(p.tema)?p.tema.join(', '):p.tema));
-      if(p.unit&&p.unit.join('').trim())meta.push('Unit: '+(Array.isArray(p.unit)?p.unit.join(', '):p.unit));
+      if(p.tema&&p.tema.join('').trim())meta.push(L.tema+': '+(Array.isArray(p.tema)?p.tema.join(', '):p.tema));
+      if(p.unit&&p.unit.join('').trim())meta.push(L.unit+': '+(Array.isArray(p.unit)?p.unit.join(', '):p.unit));
       if(meta.length)x+=self.dxP(meta.join('   |   '),{sz:18,i:true});
-      x+=self.dxSecLines(p.sk,'STANDARD KANDUNGAN');
-      x+=self.dxSecLines(p.sp,'STANDARD PEMBELAJARAN');
-      x+=self.dxP('OBJEKTIF',{b:true,sz:20,color:'1E3A5F',before:120});
+      x+=self.dxSecLines(p.sk,stripE(L.sk).toUpperCase());
+      x+=self.dxSecLines(p.sp,stripE(L.sp).toUpperCase());
+      x+=self.dxP(stripE(L.obj).toUpperCase(),{b:true,sz:20,color:'1E3A5F',before:120});
       (p.obj||[]).forEach(function(o){x+=self.dxP('•  '+o,{sz:18});});
-      if(p.kj&&p.kj.length){x+=self.dxP('KRITERIA KEJAYAAN',{b:true,sz:20,color:'1E3A5F',before:120});p.kj.forEach(function(o){x+=self.dxP('•  '+o,{sz:18});});}
-      x+=self.dxP('AKTIVITI PEMBELAJARAN',{b:true,sz:20,color:'1E3A5F',before:120});
+      if(p.kj&&p.kj.length){x+=self.dxP(stripE(L.kj).toUpperCase(),{b:true,sz:20,color:'1E3A5F',before:120});p.kj.forEach(function(o){x+=self.dxP('•  '+o,{sz:18});});}
+      x+=self.dxP(stripE(L.akt).toUpperCase(),{b:true,sz:20,color:'1E3A5F',before:120});
       (p.acts||[]).forEach(function(a){x+=self.dxP('['+a.ph+'] '+a.d+(a.dr?' ('+a.dr+' min)':''),{sz:18});if(a.t||a.s)x+=self.dxP('       '+[a.t,a.s].filter(Boolean).join('  •  '),{sz:16,color:'666666'});});
-      x+=self.dxP('BBM: '+(Array.isArray(p.bbm)?p.bbm.join(', '):String(p.bbm||'-')),{sz:18});
-      x+=self.dxP('Nilai: '+(Array.isArray(p.nilai)?p.nilai.join(', '):String(p.nilai||'-'))+'   |   EMK: '+(Array.isArray(p.emk)?p.emk.join(', '):String(p.emk||'-')),{sz:18});
-      if(p.ref)x+=self.dxP('REFLEKSI: '+p.ref,{sz:18,before:120});
+      if(p.rem&&p.rem.length){
+        x+=self.dxP(stripE(L.rem).toUpperCase(),{b:true,sz:20,color:'C2410C',before:120});
+        p.rem.forEach(function(r){x+=self.dxP('•  '+r.t+': '+r.d,{sz:18});});
+      }
+      x+=self.dxP(L.bbm+': '+(Array.isArray(p.bbm)?p.bbm.join(', '):String(p.bbm||'-')),{sz:18});
+      x+=self.dxP(L.nilai+': '+(Array.isArray(p.nilai)?p.nilai.join(', '):String(p.nilai||'-'))+'   |   '+L.emk+': '+(Array.isArray(p.emk)?p.emk.join(', '):String(p.emk||'-')),{sz:18});
+      if(p.ref)x+=self.dxP(stripE(L.ref).toUpperCase()+': '+p.ref,{sz:18,before:120});
       if(p._students&&p._students.length){
-        x+=self.dxP('REKOD TRANSIT MURID',{b:true,sz:20,color:'1E3A5F',before:120});
+        x+=self.dxP(stripE(L.rekod).toUpperCase(),{b:true,sz:20,color:'1E3A5F',before:120});
         x+=self.docxTable(['#','Nama','TP','Intervensi'],p._students.map(function(s,i){return [String(i+1),String(s.n),String(s.tp!=null?s.tp:1),String(s.c||'')];}));
       }
     });
@@ -3228,6 +3288,19 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
   /* ── Relief teacher ── */
   setRelief(p){const v=prompt(this.t('rph_reliefPrompt'),p.rl||'');if(v===null)return;p.rl=v.trim();this.snap(p);this.sv();},
 
+  refBlank(p){
+    if(!p)return;
+    const l=this.lg(p.s,this.tg);
+    const total=(p._students&&p._students.length)||'___';
+    if(l==='en'){
+      p.ref='___ / '+total+' pupils achieved today\'s learning objectives.\n___ / '+total+' pupils require guided remedial support.\nNotes / Follow-up: ________________________________________';
+    }else if(l==='zh'){
+      p.ref='___ / '+total+' 名学生达成了今日的学习目标。\n___ / '+total+' 名学生需要额外辅导。\n后续跟进：________________________________________';
+    }else{
+      p.ref='___ / '+total+' orang murid mencapai objektif pembelajaran hari ini.\n___ / '+total+' orang murid memerlukan bimbingan pemulihan.\nCatatan / Tindakan susulan: ________________________________________';
+    }
+    this.sv();
+  },
   ref1(p){
     const l=this.lg(p.s,this.tg);
     const total=p._students?p._students.length:0;
@@ -3235,42 +3308,43 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
     const mid=p._students?p._students.filter(function(s){return s.tp>=3&&s.tp<=4;}):[];
     const high=p._students?p._students.filter(function(s){return s.tp>=5;}):[];
     const lowNames=low.map(function(s){return s.n;}).join(', ');
-    const topAct=p.acts&&p.acts.length?p.acts[2].d||'aktiviti utama':'aktiviti';
+    const rawAct=(p.acts&&p.acts[2]&&p.acts[2].d)?String(p.acts[2].d):'';
+    const shortAct=rawAct.replace(/\s*\[Dif:[\s\S]*$/i,'').replace(/\s*\[分层[\s\S]*$/,'').split(/[:：]/)[0].trim()||(l==='en'?'main learning activity':l==='zh'?'主要教学活动':'aktiviti utama');
     const topRem=p.rem&&p.rem.length?p.rem[0].t||'bimbingan':'';
     const tema=(p.tema&&p.tema[0])||'';
     const unit=(p.unit&&p.unit[0])||'';
-    const sp0=(p.sp&&p.sp[0])?String(p.sp[0]).replace(/^\d+(?:\.\d+)*\.?\s*/,'').slice(0,40):'';
+    const sp0=(p.sp&&p.sp[0])?String(p.sp[0]).replace(/^\d+(?:\.\d+)*\.?\s*/,'').slice(0,60):'';
     var spAlign='';
     if(tema||unit||sp0){
-      var core=tema||unit||sp0;
-      spAlign=(l==='bm'?' Topik/Unit: '+core+(sp0?' — SP: '+sp0:'')+'. ':(l==='en'?' Topic/Unit: '+core+(sp0?' — Learning Standard: '+sp0:'')+'. ':' 主题/单元：'+core+(sp0?' — 学习标准：'+sp0:'')+'。'));
+      var core=unit||tema||sp0;
+      spAlign=(l==='bm'?' Topik/Unit: '+core+(sp0?' — SP: '+sp0:'')+'.':(l==='en'?' Topic/Unit: '+core+(sp0?' — Learning Standard: '+sp0:'')+'.':' 主题/单元：'+core+(sp0?' — 学习标准：'+sp0:'')+'。'));
     }
     if(l==='bm'){
-      var r='Seramai '+total+' orang murid terlibat dalam PdP hari ini. ';
-      if(high.length>0)r+=high.length+' orang murid mencapai tahap penguasaan 5-6 ('+high.map(function(s){return s.n;}).join(', ')+'). ';
-      if(mid.length>0)r+=mid.length+' orang murid berada pada tahap 3-4 dan memerlukan latihan tambahan. ';
-      if(low.length>0)r+=low.length+' orang murid ('+lowNames+') masih pada tahap 1-2 dan memerlukan bimbingan rapi. ';
-      r+='Aktiviti '+topAct+' telah dijalankan. ';
-      if(topRem)r+='Aktiviti pemulihan '+topRem+' diberikan kepada murid yang memerlukan. ';
-      r+='PdP akan diteruskan dengan penekanan kepada pemantapan kemahiran bagi memastikan semua murid mencapai objektif. '+spAlign;
+      var r=total>0?'Seramai '+total+' orang murid terlibat dalam PdP hari ini. ':'PdP hari ini dijalankan seperti yang dirancang. ';
+      if(high.length>0)r+=high.length+' orang murid mencapai tahap penguasaan 5–6 ('+high.map(function(s){return s.n;}).join(', ')+'). ';
+      if(mid.length>0)r+=mid.length+' orang murid berada pada tahap 3–4 dan diberikan latihan pengukuhan. ';
+      if(low.length>0)r+=low.length+' orang murid ('+lowNames+') pada tahap 1–2 diberikan bimbingan berfokus. ';
+      r+='Aktiviti '+shortAct+' telah dijalankan dengan baik. ';
+      if(topRem)r+='Aktiviti pemulihan ('+topRem+') disediakan kepada murid yang memerlukan. ';
+      r+='PdP seterusnya akan diteruskan dengan pemantapan kemahiran.'+spAlign;
       p.ref=r;
     }else if(l==='en'){
-      var r='A total of '+total+' pupils were involved in today\'s lesson. ';
-      if(high.length>0)r+=high.length+' pupils achieved mastery levels 5-6 ('+high.map(function(s){return s.n;}).join(', ')+'). ';
-      if(mid.length>0)r+=mid.length+' pupils are at levels 3-4 and need additional practice. ';
-      if(low.length>0)r+=low.length+' pupils ('+lowNames+') are at levels 1-2 and need close guidance. ';
-      r+='The activity "'+topAct+'" was carried out. ';
-      if(topRem)r+='Remedial activity "'+topRem+'" was given to pupils who needed it. ';
-      r+='The next lesson will focus on strengthening skills to ensure all pupils achieve the objectives. '+spAlign;
+      var r=total>0?'A total of '+total+' pupils participated in today\'s lesson. ':'Today\'s lesson was carried out as planned. ';
+      if(high.length>0)r+=high.length+' pupils achieved mastery levels 5–6 ('+high.map(function(s){return s.n;}).join(', ')+'). ';
+      if(mid.length>0)r+=mid.length+' pupils are at levels 3–4 and received reinforcement practice. ';
+      if(low.length>0)r+=low.length+' pupils ('+lowNames+') at levels 1–2 received guided support. ';
+      r+='The activity "'+shortAct+'" was carried out effectively. ';
+      if(topRem)r+='Remedial activity ('+topRem+') was provided to pupils who needed it. ';
+      r+='The next lesson will focus on consolidating skills.'+spAlign;
       p.ref=r;
     }else{
-      var r='今天共有 '+total+' 名学生参与了课堂教学。';
-      if(high.length>0)r+=high.length+' 名学生达到掌握水平 5-6（'+high.map(function(s){return s.n;}).join('、')+'）。';
-      if(mid.length>0)r+=mid.length+' 名学生处于水平 3-4，需要额外练习。';
-      if(low.length>0)r+=low.length+' 名学生（'+lowNames+'）处于水平 1-2，需要密切指导。';
-      r+='活动"'+topAct+'"已完成。';
-      if(topRem)r+='辅导活动"'+topRem+'"已提供给需要的学生。';
-      r+='下节课将着重加强技能，确保所有学生达到学习目标。 '+spAlign;
+      var r=total>0?'今天共有 '+total+' 名学生参与了课堂教学。':'今日课堂教学按计划顺利进行。';
+      if(high.length>0)r+=high.length+' 名学生达到掌握水平 5–6（'+high.map(function(s){return s.n;}).join('、')+'）。';
+      if(mid.length>0)r+=mid.length+' 名学生处于水平 3–4，已进行巩固练习。';
+      if(low.length>0)r+=low.length+' 名学生（'+lowNames+'）处于水平 1–2，已给予个别辅导。';
+      r+='活动“'+shortAct+'”顺利完成。';
+      if(topRem)r+='辅导活动（'+topRem+'）已提供给需要的学生。';
+      r+='下节课将继续巩固相关技能。'+spAlign;
       p.ref=r;
     }
   },
@@ -3278,11 +3352,12 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
     var l=p.s==='Prasekolah'?'pra':this.lg(p.s,this.tg);
     var lang=this.lg(p.s,this.tg);
     var phases=l==='en'?['🎯 Set Induction','📚 Pre-lesson','📖 Lesson Development','💡 Post-lesson','🎯 Closure']:l==='bm'?['🎯 Set Induksi','📚 Pra-PdP','📖 Perkembangan PdP','💡 Pasca-PdP','🎯 Penutup']:l==='pra'?['🎯 Set Induksi','📚 Pra-PdP','📖 Perkembangan PdP','💡 Pasca-PdP','🎯 Penutup']:['🎯 导入','📚 课前活动','📖 主要教学','💡 课后活动','🎯 总结'];
-    var duDef=[8,7,22,5,5];
+    var duDef=this._phaseDurations(p.dr||30);
+    var roles=this._phaseRoles(lang);
     var self=this;
     p.acts=phases.map(function(ph,i){
       var pick=self.themeAwarePick(p,['i','p','d','ps','c'][i]);
-      return{ph,d:pick.text,dr:duDef[i],t:'',s:''};
+      return{ph,d:pick.text,dr:duDef[i],t:roles.tr[i],s:roles.sr[i]};
     });
     this.applyMeta(p);
   },
@@ -3492,28 +3567,37 @@ document.addEventListener('alpine:init',()=>{ Alpine.data('app',()=>({
 
   esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;},
 
-  ht(p){const e=this.esc;const sc=this.school||{};
+  _rphLabels(l){
+    if(l==='en')return {title:'DAILY LESSON PLAN (RPH)',tema:'Theme',unit:'Unit',sk:'📋 Content Standards',sp:'🎯 Learning Standards',obj:'🎯 Learning Objectives',kj:'✅ Success Criteria',akt:'📝 Teaching & Learning Activities',rem:'🩺 Remedial Activities',bbm:'Teaching Aids',nilai:'Moral Values',emk:'CCE / EMK',ref:'💬 Reflection',rekod:'📊 Progress Record (Rekod Transit)'};
+    if(l==='zh')return {title:'每日教学计划 (RPH)',tema:'主题',unit:'单元',sk:'📋 内容标准 (SK)',sp:'🎯 学习标准 (SP)',obj:'🎯 学习目标',kj:'✅ 成功标准',akt:'📝 教学活动',rem:'🩺 辅导活动',bbm:'教具',nilai:'道德价值',emk:'跨学科元素',ref:'💬 教学反思',rekod:'📊 课堂评估记录 (Rekod Transit)'};
+    return {title:'RANCANGAN PENGAJARAN HARIAN',tema:'Tema',unit:'Unit',sk:'📋 Standard Kandungan',sp:'🎯 Standard Pembelajaran',obj:'🎯 Objektif Pembelajaran',kj:'✅ Kriteria Kejayaan',akt:'📝 Aktiviti PdP',rem:'🩺 Aktiviti Pemulihan',bbm:'BBM',nilai:'Nilai',emk:'EMK',ref:'💬 Refleksi',rekod:'📊 Rekod Transit'};
+  },
+  ht(p){const e=this.esc;const sc=this.school||{};const l=this.lg(p.s,this.tg);const L=this._rphLabels(l);
+    const temaTxt=(Array.isArray(p.tema)?p.tema.filter(Boolean).join(', '):String(p.tema||'')).trim();
+    const unitTxt=(Array.isArray(p.unit)?p.unit.filter(Boolean).join(', '):String(p.unit||'')).trim();
     return '<div style="font-family:sans-serif;max-width:210mm;margin:0;padding:1.5cm;color:#3A2A1A">'
       +'<div style="border-bottom:3px solid #C4956A;padding-bottom:.75rem;margin-bottom:1rem">'
       +(sc.logo?'<img src="'+sc.logo+'" style="max-height:2.6rem;float:right;margin-left:.6rem" alt="logo">':'')
       +(sc.n?'<div style="font-size:.78rem;font-weight:700;color:#8B5A2B;margin-bottom:.15rem">'+e(sc.n)+'</div>':'')
-      +'<h1 style="font-size:1.3rem;font-weight:700;margin:0;color:#1E3A5F">🇲🇾 RANCANGAN PENGAJARAN HARIAN</h1>'
-      +'<div style="font-size:.8rem;color:#8B5A2B;margin-top:.25rem">'+e(p.sn)+' | '+e(p.c)+' | '+e(p.d)+' | '+e(p.tm)+'</div>'
+      +'<h1 style="font-size:1.3rem;font-weight:700;margin:0;color:#1E3A5F">🇲🇾 '+e(L.title)+'</h1>'
+      +'<div style="font-size:.8rem;color:#8B5A2B;margin-top:.25rem">'+e(p.sn)+' | '+e(p.c)+' | '+e(p.d)+' | '+e(p.tm)+(p.dr?' ('+p.dr+' min)':'')+'</div>'
+      +((temaTxt||unitTxt)?'<div style="font-size:.75rem;color:#3A2A1A;margin-top:.25rem">'+(temaTxt?'<b>'+e(L.tema)+':</b> '+e(temaTxt)+' &nbsp; ':'')+(unitTxt?'<b>'+e(L.unit)+':</b> '+e(unitTxt):'')+'</div>':'')
       +(p.rl?'<div style="font-size:.75rem;color:#c2410c;margin-top:.15rem">🔄 Ganti: '+e(p.rl)+'</div>':'')+'</div>'
-      +(p.sk.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">📋 Standard Kandungan</h2>'+p.sk.map(s=>'<span style="background:#FFF8F0;border-radius:999px;padding:2px 8px;font-size:.7rem;color:#3A2A1A;display:inline-block;margin:2px;border:1px solid #C4956A30">'+e(s)+'</span>').join('')+'</div>':'')
-      +(p.sp.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">🎯 Standard Pembelajaran</h2>'+p.sp.map(s=>'<span style="background:#FFF8F0;border-radius:999px;padding:2px 8px;font-size:.7rem;color:#3A2A1A;display:inline-block;margin:2px;border:1px solid #C4956A30">'+e(s)+'</span>').join('')+'</div>':'')
-       +'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">🎯 Objektif</h2><ul style="list-style:none;padding:0">'+p.obj.map(o=>'<li style="padding:2px 0;font-size:.75rem;padding-left:1rem">'+e(o)+'</li>').join('')+'</ul></div>'
-       +(p.kj&&p.kj.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#059669;margin:.5rem 0 .3rem">✅ Kriteria Kejayaan</h2><ul style="list-style:none;padding:0">'+p.kj.map(o=>'<li style="padding:2px 0;font-size:.75rem;padding-left:1rem">'+e(o)+'</li>').join('')+'</ul></div>':'')
-      +'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">📝 Aktiviti</h2>'+p.acts.map(a=>'<div style="border:1.5px solid #C4956A;border-radius:8px;padding:8px;margin-bottom:6px;page-break-inside:avoid;background:#FFF8F0;word-break:break-word;overflow-wrap:break-word"><p style="font-size:.75rem;font-weight:600;color:#8B5A2B;margin:0 0 4px 0">'+e(a.ph)+' <span style="font-size:.65rem;color:#C4956A">- '+a.dr+' min</span></p><p style="font-size:.7rem;color:#3A2A1A;margin:4px 0 0 0;line-height:1.6;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap">' +e(a.d||"")+ '</p></div>').join('')+'</div>'
-      +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#3A2A1A;margin:.5rem 0"><div><strong>BBM:</strong> '+p.bbm.join(', ')+'</div><div><strong>Nilai:</strong> '+p.nilai.join(', ')+'</div><div><strong>EMK:</strong> '+p.emk.join(', ')+'</div></div>'
-      +(p.ref?'<div style="border-top:2px solid #C4956A;padding-top:.5rem;margin-top:.75rem;page-break-inside:avoid;word-break:break-word;overflow-wrap:break-word"><h2 style="font-size:.8rem;font-weight:700;color:#d97706">💬 Refleksi</h2><p style="font-size:.7rem;color:#78350f;font-style:italic;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;padding:8px;line-height:1.6;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap">'+e(p.ref)+'</p></div>':'')+(p._students&&p._students.length?'<div style="margin-top:.5rem;border-top:2px solid #C4956A;padding-top:.4rem"><h2 style="font-size:.8rem;font-weight:700;color:#6366f1;margin-bottom:.3rem">📊 Rekod Transit</h2><table style="width:100%;border-collapse:collapse;font-size:.7rem"><thead><tr style="background:#eef2ff;border-bottom:2px solid #c7d2fe"><th style="padding:3px 6px;text-align:left;color:#4338ca">#</th><th style="padding:3px 6px;text-align:left;color:#4338ca">Nama</th><th style="padding:3px 6px;text-align:center;color:#4338ca">TP</th><th style="padding:3px 6px;text-align:left;color:#4338ca">Intervensi</th></tr></thead><tbody>'+p._students.map((s,i)=>'<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:2px 6px;color:#94a3b8">'+(i+1)+'</td><td style="padding:2px 6px;font-weight:500;color:#334155">'+e(s.n)+'</td><td style="padding:2px 6px;text-align:center"><span style="display:inline-block;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;border-radius:9999px;font-size:.65rem;font-weight:700;background:'+((+s.tp||1)>=5?'#dcfce7':(+s.tp||1)>=3?'#fef3c7':'#fee2e2')+';color:'+((+s.tp||1)>=5?'#166534':(+s.tp||1)>=3?'#92400e':'#991b1b')+'">'+(+s.tp||1)+'</span></td><td style="padding:2px 6px;color:#78350f;font-size:.65rem">'+e(s.c||'')+'</td></tr>').join('')+'</tbody></table></div>':'')+
+      +(p.sk.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">'+e(L.sk)+'</h2>'+p.sk.map(s=>'<span style="background:#FFF8F0;border-radius:999px;padding:2px 8px;font-size:.7rem;color:#3A2A1A;display:inline-block;margin:2px;border:1px solid #C4956A30">'+e(s)+'</span>').join('')+'</div>':'')
+      +(p.sp.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">'+e(L.sp)+'</h2>'+p.sp.map(s=>'<span style="background:#FFF8F0;border-radius:999px;padding:2px 8px;font-size:.7rem;color:#3A2A1A;display:inline-block;margin:2px;border:1px solid #C4956A30">'+e(s)+'</span>').join('')+'</div>':'')
+       +'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">'+e(L.obj)+'</h2><ul style="list-style:none;padding:0">'+p.obj.map(o=>'<li style="padding:2px 0;font-size:.75rem;padding-left:1rem">'+e(o)+'</li>').join('')+'</ul></div>'
+       +(p.kj&&p.kj.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#059669;margin:.5rem 0 .3rem">'+e(L.kj)+'</h2><ul style="list-style:none;padding:0">'+p.kj.map(o=>'<li style="padding:2px 0;font-size:.75rem;padding-left:1rem">'+e(o)+'</li>').join('')+'</ul></div>':'')
+      +'<div><h2 style="font-size:.8rem;font-weight:700;color:#1E3A5F;margin:.5rem 0 .3rem">'+e(L.akt)+'</h2>'+p.acts.map(a=>'<div style="border:1.5px solid #C4956A;border-radius:8px;padding:8px;margin-bottom:6px;page-break-inside:avoid;background:#FFF8F0;word-break:break-word;overflow-wrap:break-word"><p style="font-size:.75rem;font-weight:600;color:#8B5A2B;margin:0 0 4px 0">'+e(a.ph)+' <span style="font-size:.65rem;color:#C4956A">- '+a.dr+' min</span></p><p style="font-size:.7rem;color:#3A2A1A;margin:4px 0 0 0;line-height:1.6;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap">' +e(a.d||"")+ '</p>'+((a.t||a.s)?'<p style="font-size:.62rem;color:#8B5A2B;margin:4px 0 0 0;opacity:.8">'+e([a.t,a.s].filter(Boolean).join(' · '))+'</p>':'')+'</div>').join('')+'</div>'
+      +(p.rem&&p.rem.length?'<div><h2 style="font-size:.8rem;font-weight:700;color:#ea580c;margin:.5rem 0 .3rem">'+e(L.rem)+'</h2>'+p.rem.map(r=>'<div style="border:1px solid #fed7aa;background:#fff7ed;border-radius:6px;padding:6px;margin-bottom:4px;font-size:.68rem;color:#9a3412"><b>'+e(r.t)+'</b>: '+e(r.d)+'</div>').join('')+'</div>':'')
+      +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#3A2A1A;margin:.5rem 0"><div><strong>'+e(L.bbm)+':</strong> '+p.bbm.join(', ')+'</div><div><strong>'+e(L.nilai)+':</strong> '+p.nilai.join(', ')+'</div><div><strong>'+e(L.emk)+':</strong> '+p.emk.join(', ')+'</div></div>'
+      +(p.ref?'<div style="border-top:2px solid #C4956A;padding-top:.5rem;margin-top:.75rem;page-break-inside:avoid;word-break:break-word;overflow-wrap:break-word"><h2 style="font-size:.8rem;font-weight:700;color:#d97706">'+e(L.ref)+'</h2><p style="font-size:.7rem;color:#78350f;font-style:italic;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;padding:8px;line-height:1.6;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap">'+e(p.ref)+'</p></div>':'')+(p._students&&p._students.length?'<div style="margin-top:.5rem;border-top:2px solid #C4956A;padding-top:.4rem"><h2 style="font-size:.8rem;font-weight:700;color:#6366f1;margin-bottom:.3rem">'+e(L.rekod)+'</h2><table style="width:100%;border-collapse:collapse;font-size:.7rem"><thead><tr style="background:#eef2ff;border-bottom:2px solid #c7d2fe"><th style="padding:3px 6px;text-align:left;color:#4338ca">#</th><th style="padding:3px 6px;text-align:left;color:#4338ca">Nama</th><th style="padding:3px 6px;text-align:center;color:#4338ca">TP</th><th style="padding:3px 6px;text-align:left;color:#4338ca">Intervensi</th></tr></thead><tbody>'+p._students.map((s,i)=>'<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:2px 6px;color:#94a3b8">'+(i+1)+'</td><td style="padding:2px 6px;font-weight:500;color:#334155">'+e(s.n)+'</td><td style="padding:2px 6px;text-align:center"><span style="display:inline-block;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;border-radius:9999px;font-size:.65rem;font-weight:700;background:'+((+s.tp||1)>=5?'#dcfce7':(+s.tp||1)>=3?'#fef3c7':'#fee2e2')+';color:'+((+s.tp||1)>=5?'#166534':(+s.tp||1)>=3?'#92400e':'#991b1b')+'">'+(+s.tp||1)+'</span></td><td style="padding:2px 6px;color:#78350f;font-size:.65rem">'+e(s.c||'')+'</td></tr>').join('')+'</tbody></table></div>':'')+
       +'<div style="margin-top:.5rem;padding-top:.3rem;border-top:1px solid #C4956A20;font-size:.6rem;color:#C4956A;text-align:center">🇲🇾 Dijana oleh eRPH-PM | '+e((sc&&sc.n)||'SJK(C) PIN MIN, BIDOR')+(this.session?' | Sesi '+e(this.session):'')+'</div></div>';
   },
 
   pdf1(p){
     const w = window.open('','_blank');
     if(!w){alert('Sila benarkan popup untuk PDF.');return;}
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RPH - '+p.sn+'</title><style> @page{size:A4;margin:12mm} body{font-family:sans-serif;padding:0;color:#3A2A1A;line-height:1.6;max-width:210mm;margin:0 auto} table{border-collapse:collapse;width:100%}td,th{padding:4px 6px;border:1px solid #ddd;text-align:left} h1{font-size:1.3rem;color:#1E3A5F;border-bottom:3px solid #C4956A;padding-bottom:.5rem} h2{font-size:.85rem;color:#1E3A5F;margin-top:.75rem;margin-bottom:.3rem} .act{border:1.5px solid #C4956A;border-radius:6px;padding:8px;margin-bottom:5px;background:#FFF8F0} .act p{margin:2px 0}.sk{display:inline-block;background:#FFF8F0;border:1px solid #C4956A30;border-radius:999px;padding:2px 8px;font-size:.7rem;margin:2px} .tp{display:inline-block;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;border-radius:50%;font-size:.65rem;font-weight:700} @media print{body{padding:0;margin:0 auto}div[style*="break-after"]{page-break-after:always}} .footer{text-align:center;font-size:.6rem;color:#C4956A;margin-top:.75rem;padding-top:.3rem;border-top:1px solid #C4956A20} </style></head><body>'+this.ht(p)+'<'+'/script></body></html>');;
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RPH - '+p.sn+'</title><style> @page{size:A4;margin:12mm} body{font-family:sans-serif;padding:0;color:#3A2A1A;line-height:1.6;max-width:210mm;margin:0 auto} table{border-collapse:collapse;width:100%}td,th{padding:4px 6px;border:1px solid #ddd;text-align:left} h1{font-size:1.3rem;color:#1E3A5F;border-bottom:3px solid #C4956A;padding-bottom:.5rem} h2{font-size:.85rem;color:#1E3A5F;margin-top:.75rem;margin-bottom:.3rem} .act{border:1.5px solid #C4956A;border-radius:6px;padding:8px;margin-bottom:5px;background:#FFF8F0} .act p{margin:2px 0}.sk{display:inline-block;background:#FFF8F0;border:1px solid #C4956A30;border-radius:999px;padding:2px 8px;font-size:.7rem;margin:2px} .tp{display:inline-block;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;border-radius:50%;font-size:.65rem;font-weight:700} @media print{body{padding:0;margin:0 auto}div[style*="break-after"]{page-break-after:always}} .footer{text-align:center;font-size:.6rem;color:#C4956A;margin-top:.75rem;padding-top:.3rem;border-top:1px solid #C4956A20} </style></head><body>'+this.ht(p)+'</body></html>');
     w.document.close();
   },
   pAll(){
